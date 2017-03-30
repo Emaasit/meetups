@@ -32,8 +32,9 @@ Speaker: Daniel Emaasit
 
 ## Content
 
-* [Slides PDF](H2O_TK_2015_10_22_LAS.pdf)
-* [Slides PPT](H2O_TK_2015_10_22_LAS.pptx)
+* [Slides HTML](H2O_TK_2015_10_22_LAS.pdf)
+* [Slides PDF](H2O_TK_2015_10_22_LAS.pptx)  
+* [Code R](H2O_TK_2015_10_22_LAS.pptx)
 
 ## Abstract
 

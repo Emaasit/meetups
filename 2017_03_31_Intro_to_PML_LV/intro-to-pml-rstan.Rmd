@@ -1,0 +1,680 @@
+---
+title: "Introduction to Probabilistic Machine Learning with RStan"
+author: "Daniel Emaasit"
+date: '`r Sys.Date()`'
+output:
+  html_notebook:
+    highlight: textmate
+    number_sections: yes
+    theme: flatly
+    toc: yes
+    toc_depth: 2
+    toc_float:
+      collapsed: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, tidy = FALSE, cache = TRUE, comment = NA,
+               fig.width = 7, fig.height = 5, warning = FALSE, echo = TRUE, eval = FALSE)
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(DT))
+suppressPackageStartupMessages(library(plotly))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(MASS))
+theme_set(theme_bw)
+```
+
+
+# Introduction
+Start with the manual process and then later use a library like stan. Let's load the required libraries.
+```{r eval = FALSE}
+library(rstan)
+library(ggplot2)
+library(MASS)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+```
+
+# Manual Process
+
+## Simulate samples from a GP
+
+### Step 1: Choose a number of input points
+```{r}
+# Define the points at which we want to define the functions
+x_star <- seq(-5, 5, len = 50); head(x_star)
+```
+
+### Step 2: Calculate the covariance matrix
+```{r}
+## use the squared exponential kernel
+calc_sigma <- function(x1, x2, l = 1) {
+  Sigma <- matrix(rep(0, length(x1) * length(x2)), nrow = length(x1))
+  for (i in 1:nrow(Sigma)) {
+    for (j in 1:ncol(Sigma)) {
+      Sigma[i,j] <- exp(-0.5 * (abs(x1[i] - x2[j]) / l)^2)
+    }
+  }
+  return(Sigma)
+}
+
+library(DT)
+# Calculate the covariance matrix
+sigma <- calc_sigma(x_star, x_star)
+datatable(sigma, class = 'cell-border stripe', filter = 'top',
+  caption = 'Table 1: The Covariance matrix.')
+```
+
+### Step 3: Generate samples from the mean and covariance
+Then we generate a random Gaussian vector with this covariance matrix
+```{r}
+# Generate functions from the process
+n_samples <- 50
+f_values <- matrix(rep(0, length(x_star) * n_samples), ncol = n_samples)
+datatable(f_values, class = 'cell-border stripe', filter = 'top')
+```
+
+```{r}
+# Each column represents a sample from a multivariate normal distribution
+# with zero mean and covariance sigma
+library(MASS)
+for (i in 1:n_samples) {
+  f_values[, i] <- mvrnorm(n = 1, mu = rep(0, length(x_star)), Sigma = sigma)
+}
+
+f_values_df <- as.data.frame(f_values)
+# colnames(f_values_df) <- c("f1", "f2", "f3", "f4")
+datatable(f_values_df, class = 'cell-border stripe', filter = 'top')
+```
+
+```{r}
+library(dplyr)
+f_values <- cbind(x = x_star, f_values_df) %>% 
+  mutate(f_id = "f", value_no = c(1:50)) %>% 
+  mutate(f_value = paste(f_id, value_no, sep = "")) %>% 
+  dplyr::select(-f_id, -value_no, -x)
+datatable(f_values, class = 'cell-border stripe', filter = 'top')
+```
+
+
+```{r}
+# nest the samples into a single column for each x value
+f_samples <- tidyr::nest(data = f_values, key = -f_value) %>% 
+  mutate(mean_values = purrr::map(data, rowMeans)) 
+f_samples <- cbind(x = x_star, f_samples)
+datatable(f_samples, class = 'cell-border stripe', filter = 'top')
+```
+
+### Step 4: Plot function evaluations Vs inputs
+Plot the generated values as a function of the inputs
+```{r}
+library(tidyr)
+f_values <- gather(data = f_values, key = function_id, value = f_eval, -x)
+datatable(f_values, class = 'cell-border stripe', filter = 'top')
+```
+
+
+```{r}
+# Plot the result
+# p1 <- ggplot() +
+#   geom_rect(xmin = -Inf, xmax = Inf, ymin = -2, ymax = 2, fill = "grey80") + 
+#   theme_bw() + 
+#   scale_y_continuous(lim = c(-3, 3)) + 
+#   geom_line(f_samples, aes(x = x, y = mean_values, color = f_value)) + 
+#   xlab("input, x") + ylab("output, f(x)") + ggtitle("Samples from a Gaussian Process")
+# p1
+plot(x=f_samples$x, y = f_samples$mean_values)
+```
+
+
+```{r}
+# 2. Now let's assume that we have some known data points;
+# this is the case of Figure 2.2(b). In the book, the notation 'f'
+# is used for f$y below.  I've done this to make the ggplot code
+# easier later on.
+f <- data.frame(x=c(-4,-3,-1,0,2),
+                y=c(-2,0,1,2,-1))
+
+# Calculate the covariance matrices
+# using the same x.star values as above
+x <- f$x
+k.xx <- calcSigma(x,x)
+k.xxs <- calcSigma(x,x.star)
+k.xsx <- calcSigma(x.star,x)
+k.xsxs <- calcSigma(x.star,x.star)
+
+# These matrix calculations correspond to equation (2.19)
+# in the book.
+f.star.bar <- k.xsx%*%solve(k.xx)%*%f$y
+cov.f.star <- k.xsxs - k.xsx%*%solve(k.xx)%*%k.xxs
+
+# This time we'll plot more samples.  We could of course
+# simply plot a +/- 2 standard deviation confidence interval
+# as in the book but I want to show the samples explicitly here.
+n.samples <- 50
+values <- matrix(rep(0,length(x.star)*n.samples), ncol=n.samples)
+for (i in 1:n.samples) {
+  values[,i] <- mvrnorm(1, f.star.bar, cov.f.star)
+}
+values <- cbind(x=x.star,as.data.frame(values))
+values <- melt(values,id="x")
+
+# Plot the results including the mean function
+# and constraining data points
+fig2b <- ggplot(values,aes(x=x,y=value)) +
+  geom_line(aes(group=variable), colour="grey80") +
+  geom_line(data=NULL,aes(x=x.star,y=f.star.bar),colour="red", size=1) + 
+  geom_point(data=f,aes(x=x,y=y)) +
+  theme_bw() +
+  scale_y_continuous(lim=c(-3,3), name="output, f(x)") +
+  xlab("input, x")
+
+# 3. Now assume that each of the observed data points have some
+# normally-distributed noise.
+
+# The standard deviation of the noise
+sigma.n <- 0.1
+
+# Recalculate the mean and covariance functions
+f.bar.star <- k.xsx%*%solve(k.xx + sigma.n^2*diag(1, ncol(k.xx)))%*%f$y
+cov.f.star <- k.xsxs - k.xsx%*%solve(k.xx + sigma.n^2*diag(1, ncol(k.xx)))%*%k.xxs
+
+# Recalulate the sample functions
+values <- matrix(rep(0,length(x.star)*n.samples), ncol=n.samples)
+for (i in 1:n.samples) {
+  values[,i] <- mvrnorm(1, f.bar.star, cov.f.star)
+}
+values <- cbind(x=x.star,as.data.frame(values))
+values <- melt(values,id="x")
+
+# Plot the result, including error bars on the observed points
+gg <- ggplot(values, aes(x=x,y=value)) + 
+  geom_line(aes(group=variable), colour="grey80") +
+  geom_line(data=NULL,aes(x=x.star,y=f.bar.star),colour="red", size=1) + 
+  geom_errorbar(data=f,aes(x=x,y=NULL,ymin=y-2*sigma.n, ymax=y+2*sigma.n), width=0.2) +
+  geom_point(data=f,aes(x=x,y=y)) +
+  theme_bw() +
+  scale_y_continuous(lim=c(-3,3), name="output, f(x)") +
+xlab("input, x")
+```
+
+# Using Stan
+Load the required Stan libraries and use all cores on computer
+```{r}
+library(rstan)
+library(ggplot2)
+library(bayesplot)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+```
+
+## Simulate data from a GP
+It is simplest to start with a Stan model that does nothing more than simulate draws of functions f from a Gaussian process. In practical terms, the model will draw values $y_i = f(x_i)$ for finitely many input points $x_i$ .
+
+### Step 1: Choose a number of input points
+```{r}
+x <- seq(from = -5, to = 5, len = 2000)
+inputs <- matrix(x, nrow = length(x))
+N <- nrow(inputs)
+D <- ncol(inputs)
+length_scale <- 0.15
+alpha <- 1
+sigma <- 0.3162278
+
+my_data <- list(x = inputs, N = N, D = D, length_scale = length_scale, alpha = alpha, sigma = sigma)
+```
+
+
+### Step 2: Build the Stan model
+This model calculates the covariance metrix using the squared exponential kernel. Then it simulates/samples function evaluations (values) from a multivariate Gaussian with that kernel. The squared Euclidean distance calculation is done using the `dot_self` function, which returns the dot product of its argument with itself, here x[i] - x[j].
+
+The hyperparameters include:  
+
+* $\eta$ = the scale of the output values,  
+* $\sigma$ = the scale of the output noise,
+* $1/\rho$ = the scale at which distances are measured among inputs
+
+The hyperparameters are set to $\eta^2 = 1$, $\rho^2 = 1$, and $\sigma^2 = 0.1$, and the mean function $m$ is defined to always return the zero vector, $m(x) = 0$.
+
+```{r}
+gp_sim <- "
+data {
+  int<lower = 1> D;      // dim of matrix
+  int<lower = 1> N;      // sample size
+  vector[D] x[N];        // matrix
+  real<lower = 0> length_scale;
+  real<lower = 0> alpha;
+  real<lower = 0> sigma;
+}
+transformed data {
+  vector[N] zeros;
+  matrix[N, N] L_cov;
+  zeros = rep_vector(0, N);
+  {
+    matrix[N, N] cov;
+    cov = cov_exp_quad(x, alpha, length_scale);
+    for (n in 1:N)
+    cov[n, n] = cov[n, n] + square(sigma);
+    L_cov = cholesky_decompose(cov);
+  }  
+}
+parameters {
+  vector[N] y;
+}
+model {
+  y ~ multi_normal_cholesky(zeros, L_cov);
+}
+"
+```
+
+```{r}
+gp_sim_new <- "
+data {
+  int<lower = 1> D;      // dim of matrix
+  int<lower = 1> N;      // sample size
+  vector[D] x[N];        // matrix
+  real<lower = 0> length_scale;
+  real<lower = 0> alpha;
+  real<lower = 0> sigma;
+}
+transformed data {
+  vector[N] zeros;
+  zeros = rep_vector(0, N);
+}
+model {}
+generated quantities {
+  vector[N] y;
+  vector[N] f;
+  {
+    matrix[N, N] cov;
+    matrix[N, N] L_cov;
+    cov = cov_exp_quad(x, alpha, length_scale);
+    for (n in 1:N)
+    cov[n, n] = cov[n, n] + 1e-12;
+    L_cov = cholesky_decompose(cov);
+    f = multi_normal_cholesky_rng(zeros, L_cov);
+  }
+  for (n in 1:N)
+    y[n] = normal_rng(f[n], sigma);
+}
+"
+```
+
+### Step 3: Generate samples from the mean and covariance
+```{r}
+library(rstan)
+model_compiled <- stan_model(model_code = gp_sim_new, model_name = "gp_sim_new")
+fit_sim <- sampling(model_compiled, data = my_data, algorithm='Fixed_param', iter = 8, chains = 1, seed = 363360090)
+```
+
+### Step 4: Plot function evaluations Vs inputs 
+```{r}
+# Extract simualted data
+list_of_draws <- rstan::extract(fit_sim, permuted=TRUE)
+View(list_of_draws$f)
+df <- data.frame(x = my_data$x, mu = 0, y_mean = colMeans(list_of_draws$y), f_mean = colMeans(list_of_draws$f))
+DT::datatable(df, class = 'cell-border stripe', filter = 'top')
+```
+
+```{r}
+library(reshape2)
+post_mu_fs <- data.frame(x = my_data$x, y = t(list_of_draws$y), f = t(list_of_draws$f))
+set <- sample(1:my_data$N,size = 30, replace = F)
+post_mu_fs_melt <- melt(post_mu_fs, id.vars = "x")
+```
+
+
+```{r}
+library(magrittr)
+p1 <-  ggplot() + 
+      theme_bw() +
+      geom_rect(xmin = -Inf, xmax = Inf, ymin = -2.0, ymax = 2.0, fill = "grey80") + 
+      geom_line(data = post_mu_fs, aes(x = x, y = f.1, color = "1st prior function")) + 
+      geom_line(data = post_mu_fs, aes(x = x, y = f.2, color = "2nd prior function")) + 
+      geom_line(data = post_mu_fs, aes(x = x, y = f.3, color = "3rd prior function")) + 
+      geom_line(data = post_mu_fs, aes(x = x, y = f.4, color = "4th prior function")) +   
+      # geom_line(data = dplyr::filter(post_mu_fs_melt, variable == "f.1"), 
+      #           aes(x = x, y = value, color = "f function values")) + 
+      # geom_point(data = (data = dplyr::filter(post_mu_fs_melt, variable == "y.1"))[set,], 
+      #            aes(x = x, y = value, colour = 'Sample observed data')) + 
+      theme_bw() + theme(legend.position="bottom") + 
+      scale_color_manual(name = '', values = c('Sample observed data'='black',
+                                               '1st prior function'='red', 
+                                               '2nd prior function'='blue',
+                                               '3rd prior function'='green',
+                                               '4th prior function'='purple')) +
+      xlab("input, x") + ylab("output, f(x)") + 
+      ggtitle(paste0('N=',length(my_data$x),' from length-scale = 0.15, alpha = 1, sigma = 0.32'))
+p1
+```
+
+
+## Fitting a Gaussian Process model
+Recall the Squared Exponential (SE) covariance function.
+$$k(x)_{i,j}=\eta^2 exp(-\rho^2\sum{(x_{i,d}-x_{j,d})^2})+\delta_{i,j}\sigma^2 $$
+The hyperparameters controlling the covariance function of a Gaussian process can be fit by assigning them priors, then computing the posterior distribution of the hyperparameters given observed data. Because the hyperparameters are required to be positive and expected to have reasonably small values, broad half-Cauchy distributions act as quite vague priors.
+
+* the scale of the output values ($\eta$),  
+* the scale of the output noise ($\sigma$),  
+* the length scale (1/$\rho$), i.e. the scale at which distances are measured among inputs.
+
+### Step 1: Prepare the input data
+```{r}
+y <- mtcars$mpg
+X <- as.matrix(mtcars[, 3:7])
+N <- nrow(mtcars)
+D <- ncol(X)
+my_data <- list(x = X, N = N, D = D, y = y)
+```
+
+
+### Step 2: Build the model
+Note that a prior is put on the scale term `inv_rho_sq`, then `rho_sq` is defined as `inv(inv_rho_sq)`, which is just a more efficient way of expressing `1 / rho_sq`. An alternative would be to just divide by `inv_rho_sq`. $y$ is known and the covariance matrix $Sigma$ is an unknown dependent on the hyperparameters.
+```{r}
+gp_fit <- "
+// Fit a Gaussian process's hyperparameters
+// for squared exponential prior
+
+data {
+  int<lower = 1> D;      // dim of matrix
+  int<lower=1> N;
+  vector[D] x[N];        // matrix
+  vector[N] y;
+}
+transformed data {
+  vector[N] mu;
+  for (i in 1:N) 
+    mu[i] = 0;
+}
+parameters {
+  real<lower=0> eta_sq;
+  real<lower=0> inv_rho_sq;
+  real<lower=0> sigma_sq;
+}
+transformed parameters {
+   real<lower=0> rho_sq;
+   rho_sq = inv(inv_rho_sq);
+}
+model {
+  matrix[N, N] Sigma;
+
+  // off-diagonal elements
+  for (i in 1:(N-1)) {
+    for (j in (i+1):N) {
+      Sigma[i,j] = eta_sq * exp(-rho_sq * dot_self(x[i] - x[j]));
+      Sigma[j,i] = Sigma[i,j];
+    }
+  }
+
+  // diagonal elements
+  for (k in 1:N)
+    Sigma[k,k] = eta_sq + sigma_sq; // + jitter
+
+  eta_sq ~ cauchy(0,5);     // prior on eta
+  inv_rho_sq ~ cauchy(0,5);     // prior
+  sigma_sq ~ cauchy(0,5);   // prior
+
+  y ~ multi_normal(mu,Sigma);
+}
+"
+```
+
+### Step 3: Sample from the posterior
+```{r}
+my_fit <- stan(model_code = gp_fit, data = my_data, iter = 200, chains = 3)
+```
+
+### Step 4: Diagnose Results
+```{r}
+list_of_draws <- rstan::extract(my_fit, permuted=TRUE)
+print(my_fit)
+```
+
+## Predictive Inference with a Gaussian Process
+Suppose for a given sequence of inputs x that the corresponding outputs y are observed. Given a new sequence of inputs $x_*$, the posterior predictive distribution of their labels is computed by sampling outputs $y_*$.
+
+### Step 1: Prepare the input data
+```{r}
+library(dplyr)
+mtcars$id <- 1:nrow(mtcars)
+train <- dplyr::sample_frac(mtcars, 0.7)
+test  <- dplyr::anti_join(mtcars, train, by = 'id')
+
+y1 <- train$mpg
+X1 <- as.matrix(train[, 3:7])
+N1 <- nrow(X1)
+D <- ncol(X1)
+
+X2 <- as.matrix(test[, 3:7])
+N2 <- nrow(X2)
+
+my_data <- list(x1 = X1, N1 = N1, D = D, y1 = y1, x2 = X2, N2 = N2)
+```
+
+### Step 2: Build the model
+A transformed data block is used to combine the input vectors `x1` and `x2` into a single vector `x`. The covariance function is then applied to this combined input vector to produce the covariance matrix `Sigma`. The mean vector `mu` is also declared and set to zero. 
+
+```{r}
+gp_pred <- "
+data {
+  int<lower = 1> D;      // dim of matrix
+  int<lower=1> N1;
+  vector[D] x1[N1];      // matrix
+  vector[N1] y1;
+  int<lower=1> N2;
+  vector[D] x2[N2];     // matrix
+}
+transformed data {
+  int<lower=1> N;
+  vector[D] x[N1+N2];
+  vector[N1+N2] mu;
+  cov_matrix[N1+N2] Sigma;
+  N = N1 + N2;
+  for (n in 1:N1) x[n] = x1[n];
+  for (n in 1:N2) x[N1 + n] = x2[n];
+  for (i in 1:N) mu[i] = 20;
+  for (i in 1:N)
+  for (j in 1:N)
+  Sigma[i, j] = exp(-dot_self(x[i] - x[j])) + if_else(i == j, 0.1 , 0.0);
+}
+parameters {
+  vector[N2] y2;
+}
+model {
+  vector[N] y;
+  for (n in 1:N1) y[n] = y1[n];
+  for (n in 1:N2) y[N1 + n] = y2[n];
+  y ~ multi_normal(mu, Sigma);
+}
+"
+```
+
+
+### Step 3: Sample from the posterior
+```{r}
+my_fit_pred <- stan(model_code = gp_pred, data = my_data, iter = 200, chains = 3)
+```
+
+
+### Step 4: Diagnose the results
+```{r}
+list_of_draws <- rstan::extract(my_fit_pred)
+print(list_of_draws$y2)
+```
+
+#### Predictive Accuracy
+```{r}
+y_pred <- colMeans(list_of_draws$y2) %>% as.data.frame()
+y_actual <- test$mpg 
+y_combined <- data.frame(y_pred = y_pred, y_actual = y_actual)
+
+# Function that returns Root Mean Squared Error
+rmse <- function(y_actual, y_pred) {
+  error <- y_actual - y_pred
+  sqrt(mean(error^2))
+}
+
+# Function that returns Mean Absolute Error
+mae <- function(y_actual, y_pred) {
+  error_abs <- abs(y_actual - y_pred)
+  colnames(error_abs) <- "absolute_error"
+  mean(error_abs$absolute_error)
+}
+
+rmse(y_actual, y_pred)
+mae(y_actual, y_pred)
+```
+
+## Joint Hyperparameter Fitting and Predictive Inference
+Hyperparameter fitting may be carried out jointly with predictive inference in a single model. This allows full Bayesian inference to account for the affect of the uncertainty in the hyperparameter estimates on the predictive inferences.
+
+### Step 1: Prepare the input data
+```{r}
+library(dplyr)
+mtcars$id <- 1:nrow(mtcars)
+train <- dplyr::sample_frac(mtcars, 0.7)
+test  <- dplyr::anti_join(mtcars, train, by = 'id')
+
+y1 <- train$mpg
+X1 <- as.matrix(train[, 3:7])
+N1 <- nrow(X1)
+D <- ncol(X1)
+
+X2 <- as.matrix(test[, 3:7])
+N2 <- nrow(X2)
+
+my_data <- list(x1 = X1, N1 = N1, D = D, y1 = y1, x2 = X2, N2 = N2)
+```
+
+### Step 2: Build the model
+To encode a joint hyperparameter fit and predictive inference model in Stan, declare the hyperparameters as additional parameters, give them a prior in the model, move the definition of `Sigma` to a local variable in the model defined using the hyperparameters.
+
+```{r}
+gp_joint <- "
+data {
+  int<lower = 1> D;      // dim of matrix
+  int<lower=1> N1;
+  vector[D] x1[N1];      // matrix
+  vector[N1] y1;
+  int<lower=1> N2;
+  vector[D] x2[N2];     // matrix
+}
+transformed data {
+  int<lower=1> N;
+  vector[D] x[N1+N2];
+  vector[N1+N2] mu;
+  # cov_matrix[N1+N2] Sigma;
+  N = N1 + N2;
+  for (n in 1:N1) 
+    x[n] = x1[n];
+  for (n in 1:N2) 
+    x[N1 + n] = x2[n];
+  for (i in 1:N) 
+    mu[i] = 20;
+}
+parameters {
+  vector[N2] y2;
+  real<lower=0> eta_sq;
+  real<lower=0> inv_rho_sq;
+  real<lower=0> sigma_sq;
+}
+transformed parameters {
+   real<lower=0> rho_sq;
+   rho_sq = inv(inv_rho_sq);
+}
+model {
+   vector[N] y;
+   matrix[N, N] Sigma;
+
+  // off-diagonal elements
+  for (i in 1:(N-1)) {
+    for (j in (i+1):N) {
+      Sigma[i,j] = eta_sq * exp(-rho_sq * dot_self(x[i] - x[j]));
+      Sigma[j,i] = Sigma[i,j];
+    }
+  }
+
+  // diagonal elements
+  for (k in 1:N)
+    Sigma[k,k] = eta_sq + sigma_sq; // + jitter
+
+  eta_sq ~ cauchy(0,5);     // prior on eta
+  inv_rho_sq ~ cauchy(0,5);     // prior
+  sigma_sq ~ cauchy(0,5);   // prior
+
+  for (n in 1:N1) 
+    y[n] = y1[n];
+  for (n in 1:N2) 
+    y[N1 + n] = y2[n];
+
+  y ~ multi_normal(mu, Sigma);
+}
+"
+```
+
+### Step 3: Sample from the posterior
+```{r}
+my_fit_joint <- stan(model_code = gp_joint, data = my_data, iter = 200, chains = 3)
+```
+
+
+### Step 4: Diagnose the results
+```{r}
+list_of_draws <- rstan::extract(my_fit_joint)
+print(names(list_of_draws))
+print(my_fit_joint)
+```
+
+#### Predictive Accuracy
+```{r}
+# find_mode <- function(x) {
+#   ux <- unique(x)
+#   ux[which.max(tabulate(match(x, ux)))]
+# }
+# y_pred_draws <- list_of_draws$y2 %>% as.data.frame()
+# y_pred <- lapply(y_pred_draws, find_mode) %>% as.data.frame()
+y_pred <- colMeans(list_of_draws$y2) %>% as.data.frame()
+y_actual <- test$mpg 
+y_combined <- data.frame(y_pred = y_pred, y_actual = y_actual)
+
+# Function that returns Root Mean Squared Error
+rmse <- function(y_actual, y_pred) {
+  error <- y_actual - y_pred
+  sqrt(mean(error^2))
+}
+
+# Function that returns Mean Absolute Error
+mae <- function(y_actual, y_pred) {
+  error_abs <- abs(y_actual - y_pred)
+  colnames(error_abs) <- "absolute_error"
+  mean(error_abs$absolute_error)
+}
+
+rmse(y_actual, y_pred)
+mae(y_actual, y_pred)
+```
+
+
+# Appendix
+
+## Compare with linear model
+```{r}
+library(caret)
+##fit a linear model using "lm" method from caret package
+lm_fit<-train(mpg ~ disp + hp + drat + wt + qsec, method="lm", data = train)
+##then use the model to predict new values
+lm_predict<-predict(lm_fit, newdata = test)
+rmse(y_actual, y_pred = as.data.frame(lm_predict))
+mae(y_actual, y_pred = as.data.frame(lm_predict))
+```
+```{r}
+postResample(pred = lm_predict, obs = test$mpg) ## my rmse is the same as from caret
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(data = head(mtcars, n = 10), aes(x = disp, y = mpg)) + geom_point() + 
+  geom_smooth(aes(color = "Polynomial"), method = "lm", formula = (formula= (y ~ poly(x, 4))))
+```
