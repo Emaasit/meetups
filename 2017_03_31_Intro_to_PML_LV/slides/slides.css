@@ -1,0 +1,109 @@
+.reveal .sourceCode.r .kw, .sourceCode.r .er {
+  color:inherit;
+  font-weight: normal;
+}
+.reveal .sourceCode.r .co {
+  font-style: normal;
+}
+
+.reveal .slides {
+  text-align: center;
+}
+
+.reveal .slide.level2 h1 {
+  font-size: 44px;
+}
+
+.reveal pre code {
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+body {
+  background: #fff;
+  background-color: #fff; }
+
+.reveal {
+  font-family: "Open Sans", sans-serif;
+  font-size: 26px;
+  font-weight: normal;
+  color: #111; }
+  
+.reveal h1,
+.reveal h2,
+.reveal h3,
+.reveal h4,
+.reveal h5,
+.reveal h6 {
+  margin: 0 0 20px 0;
+  color: #111;
+  font-family: "Montserrat", Impact, sans-serif;
+  font-weight: normal;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  text-transform: none;
+  text-shadow: none;
+  word-wrap: break-word; }
+  
+.reveal h5 {
+  font-size: 0.77em; }
+  
+.reveal h6 {
+  font-size: 0.77em; }  
+
+.reveal a {
+  color: #0071c3;
+  text-decoration: none;
+  -webkit-transition: color .15s ease;
+  -moz-transition: color .15s ease;
+  transition: color .15s ease; }
+  
+  /*********************************************
+ * NAVIGATION CONTROLS
+ *********************************************/
+.reveal .controls .navigate-left,
+.reveal .controls .navigate-left.enabled {
+  border-right-color: #0083c3; }
+
+.reveal .controls .navigate-right,
+.reveal .controls .navigate-right.enabled {
+  border-left-color: #0083c3; }
+
+.reveal .controls .navigate-up,
+.reveal .controls .navigate-up.enabled {
+  border-bottom-color: #0083c3; }
+
+.reveal .controls .navigate-down,
+.reveal .controls .navigate-down.enabled {
+  border-top-color: #0083c3; }
+  
+  .reveal ul ul {
+  list-style-type: square; }
+  
+.reveal ul ul,
+.reveal ul ol,
+.reveal ol ol,
+.reveal ol ul {
+  display: block;
+  margin-left: 50px; 
+  font-size: 24px;
+  color: #00ad03;
+  font-style: italic;
+}
+
+.reveal .caption {
+  font-size: 14px;
+  font-style: italic;
+}
+
+.reveal table {
+  table-layout: auto;
+  border: 1px solid black;
+  margin: auto;
+  border-collapse: collapse;
+  border-spacing: 0; }
+  
+.reveal table th,
+.reveal table td {
+  border: 1px solid black;
+  border-bottom: 1px solid black; }
