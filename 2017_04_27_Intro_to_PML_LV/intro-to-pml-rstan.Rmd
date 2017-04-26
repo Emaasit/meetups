@@ -3,9 +3,6 @@ title: "Introduction to Probabilistic Machine Learning with Stan"
 author: "Daniel Emaasit"
 date: '`r Sys.Date()`'
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '4'
   html_notebook:
     highlight: textmate
     number_sections: yes
@@ -14,6 +11,9 @@ output:
     toc_depth: 2
     toc_float:
       collapsed: no
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
 ---
 
 ```{r setup, include=FALSE}
@@ -60,6 +60,9 @@ library(tidyverse)
 
 mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
 mpg_data$id <- 1:nrow(mpg_data)
+
+mpg_data <- sample_frac(mpg_data, 0.09) # small sample
+
 train <- sample_frac(mpg_data, 0.7)
 test  <- anti_join(mpg_data, train, by = 'id')
 
@@ -75,7 +78,7 @@ length_scale_rate <- 1
 signal_variance_scale <- 1
 noise_variance_scale <- 0.1
 
-my_data_current <- list(y = y, x = x, N = N, D = D, x_pred = x_pred, N_pred = N_pred, 
+my_data <- list(y = y, x = x, N = N, D = D, x_pred = x_pred, N_pred = N_pred, 
                         length_scale_shape = length_scale_shape, 
                         length_scale_rate = length_scale_rate, 
                         signal_variance_scale = signal_variance_scale, 
@@ -83,10 +86,10 @@ my_data_current <- list(y = y, x = x, N = N, D = D, x_pred = x_pred, N_pred = N_
 ```
 
 ### Step 2: Build the model
-The model is prepared as a "Stan program" in a separate stan file named "gp_joint_current.stan". The specified Stan program encodes a joint hyperparameter fit and predictive inference model, by declaring the hyperparameters as additional parameters and giving them priors.
+The model is prepared as a "Stan program" in a separate stan file named "gp_model.stan". The specified Stan program encodes a joint hyperparameter fit and predictive inference model, by declaring the hyperparameters as additional parameters and giving them priors.
 
 ```{r}
-gp_joint_current <- "
+gp_model <- "
 data {
   int<lower=1> N;
   int<lower=1> D;
@@ -123,46 +126,137 @@ model {
 "
 ```
 
-### Step 3: Sample from the posterior
+### Step 3: Translate and compile the model
+Translate the Stan program to C++ code and compile the C++ code to create a dynamic shared object (DSO) that can be loaded by R.
 ```{r}
-my_fit_joint <- stan(model_code = gp_joint, data = my_data, iter = 200, chains = 3)
+model_compiled <- stan_model(file = "gp_model.stan", 
+                                     model_name = "gp_model")
 ```
 
-
-### Step 4: Diagnose the results
+## Step 4: Sample from the posterior
+Run the DSO to sample from the posterior distribution.
 ```{r}
-list_of_draws <- rstan::extract(my_fit_joint)
+fit <- sampling(model_compiled, data = my_data, 
+                          iter = 200, chains = 4, cores = getOption("mc.cores", 1L), 
+                       control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth = 15))
+#saveRDS(fit, file = "fit.RDS")
+```
+
+## Step 5: Evaluate & criticize the results
+```{r}
+#fit_gp_tdm <- readRDS("fit_gp_tdm_many_kernels_log2.RDS")
+list_of_draws <- rstan::extract(fit_gp_tdm)
 print(names(list_of_draws))
-print(my_fit_joint)
+```
+```{r}
+tidy_fit <- broom::tidy(fit_gp_tdm, estimate.method = "mean", conf.int = TRUE, conf.level = 0.80, conf.method = "quantile", droppars = "lp__",
+  rhat = TRUE, ess = TRUE)
+saveRDS(tidy_fit, "tidy_fit_log2.RDS")
+print(fit_gp_tdm)
 ```
 
-#### Predictive Accuracy
+### Step 5.1: Predictive Accuracy
 ```{r}
-# find_mode <- function(x) {
-#   ux <- unique(x)
-#   ux[which.max(tabulate(match(x, ux)))]
-# }
-# y_pred_draws <- list_of_draws$y2 %>% as.data.frame()
-# y_pred <- lapply(y_pred_draws, find_mode) %>% as.data.frame()
-y_pred <- colMeans(list_of_draws$y2) %>% as.data.frame()
-y_actual <- test$mpg 
+library(magrittr)
+y_pred <- colMeans(list_of_draws$y_pred) %>% as.data.frame()
+y_actual <- log(test_design_df$act_dur)
 y_combined <- data.frame(y_pred = y_pred, y_actual = y_actual)
 
 # Function that returns Root Mean Squared Error
-rmse <- function(y_actual, y_pred) {
-  error <- y_actual - y_pred
+rmse <- function(y_observed, y_predicted) {
+  error <- y_observed - y_predicted
   sqrt(mean(error^2))
 }
 
 # Function that returns Mean Absolute Error
-mae <- function(y_actual, y_pred) {
-  error_abs <- abs(y_actual - y_pred)
+mae <- function(y_observed, y_predicted) {
+  error_abs <- abs(y_observed - y_predicted)
   colnames(error_abs) <- "absolute_error"
   mean(error_abs$absolute_error)
 }
 
-rmse(y_actual, y_pred)
-mae(y_actual, y_pred)
+error1 <- rmse(y_observed = y_actual, y_predicted = y_pred)
+error2 <- mae(y_observed = y_actual, y_predicted = y_pred)
+error1
+error2
+```
+
+### Step 5.2: Visualise Results
+
+#### Posterior distribution of fitted parameters
+Visualise distributions of MCMC draws
+```{r}
+array_of_draws <- as.array(fit_gp_tdm)
+mcmc_dens(array_of_draws, 
+          pars = c("alpha", "sigma"), 
+          facet_args = list(labeller = as_labeller(c(
+                    `alpha` = "Signal variance",
+                    `sigma` = "Noise variance"
+                    )))) + 
+  # ggtitle("Posterior distribution of Hyperparameters", 
+  #         subtitle = "from Bayesian Nonparametric Regression") + 
+  theme_ipsum(grid="Y") + 
+  theme(legend.position="none",
+        axis.text.x = element_text(size = 16, colour = "black"),
+        axis.text.y = element_text(size = 16, colour = "black"),
+        plot.title = element_text(size = 18, colour = "black", face = "bold"),
+        plot.subtitle = element_text(size = 14, colour = "black"),
+        axis.title.x = element_text(size = 16),
+        strip.text.x = element_text(size = 16),
+        axis.title.y = element_text(size = 16)) 
+# + scale_x_continuous(breaks = c(0.3,0.4,0.5))
+```
+
+#### Posterior predictive distribution
+```{r}
+library(reshape2)
+post_pred <- data.frame(x = test_design_df[, 2], 
+                        y_pred = colMeans(list_of_draws$y_pred), 
+                        y_actual = log(test_design_df$act_dur))
+post_mu_fs <- data.frame(x = test_design_df[, 2], 
+                         y = t(list_of_draws$y_pred))
+#post_mu_fs <- post_mu_fs[,1:6]
+post_mu_fs_melt <- melt(post_mu_fs, id.vars = "x")
+
+p2 <- ggplot(data = post_pred, aes(x = x, y = y_actual)) + 
+  geom_line(data = post_mu_fs_melt, aes(x = x, y = value, group = variable, 
+                                        colour = 'Posterior functions'), alpha = 0.01) + 
+  theme_bw() + theme(legend.position="bottom") +
+  geom_line(data = post_pred, aes(x = x, y = y_pred, colour = 'Posterior mean function')) + 
+  theme_bw() + theme(legend.position = "bottom") + 
+  geom_point(aes(colour = 'Test data')) +
+  scale_color_manual(name = '', values = c('Test data'='black',
+                                           'Posterior functions'= 'blue',
+                                           'Posterior mean function'='red')) +
+  xlab('Auto driver') + 
+  ylab('log(Duration in mins)') + 
+  ggtitle(paste0('Length-scale = ' ,round((mean(list_of_draws$length_scale_1)), digits = 2))) +
+  # ggtitle("Gaussian Process posterior", 
+  #         subtitle = paste0('Posterior predictive distribution with length-scale = ' ,round((mean(list_of_draws$length_scale_1)), digits = 2),', sigma = ' ,round((mean(list_of_draws$sigma)), digits = 2),', alpha = ' ,round((mean(list_of_draws$alpha)), digits = 2),'')) + 
+      theme(axis.title.x = element_text(size = 16),
+        axis.text.x = element_text(size = 16, colour = "black"),
+        axis.text.y = element_text(size = 16, colour = "black"),
+        axis.title.y = element_text(size = 16),
+        plot.title = element_text(size=16, hjust = 0),
+        legend.position="none") + 
+  scale_x_continuous(breaks = c(0, 1), labels = c("No", "Yes"))
+p2
+```
+
+### Step 5.3: Diagnose MCMC draws
+```{r}
+color_scheme_set("mix-blue-red")
+mcmc_trace(array_of_draws, pars = c("length_scale", "alpha", "sigma"), 
+           facet_args = list(ncol = 1, strip.position = "left"))
+```
+
+```{r}
+n_ratios <- neff_ratio(fit_gp_tdm)
+#print(n_ratios)
+mcmc_neff(n_ratios)
+```
+```{r}
+mcmc_neff_hist(n_ratios) 
 ```
 
 

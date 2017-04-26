@@ -114,7 +114,7 @@ knitr::include_graphics("images/pp.png")
 <!-- ``` -->
 
 
-# Code I <br/> Parametric Regression  {data-background=#74d1ea}
+# How does Stan work?  {data-background=#74d1ea}
 
 ## Bayesian <span style="color:red">Linear</span> Model (1/4)
 
@@ -218,7 +218,7 @@ p1 <- ggplot(test, aes(x = test$disp, y = test$mpg)) +
 p1
 ```
 
-# Code II <br/> Nonparametric Bayesian Methods  {data-background=#74d1ea}
+# Nonparametric Bayesian Methods  {data-background=#74d1ea}
 
 ## Challenges of Parametric Regression 
 
