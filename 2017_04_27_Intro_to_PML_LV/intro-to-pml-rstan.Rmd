@@ -8,7 +8,7 @@ output:
     number_sections: yes
     theme: flatly
     toc: yes
-    toc_depth: 2
+    toc_depth: 3
     toc_float:
       collapsed: no
   pdf_document:
@@ -41,13 +41,183 @@ rstan_options(auto_write = TRUE) #To write the stan object to the hard disk usin
 options(mc.cores = parallel::detectCores())
 ```
 
-# Parametric Bayesian Methods
-
-## Data
+## The raw data
 https://archive.ics.uci.edu/ml/datasets/Auto+MPG
 ```{r}
 mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
 head(mpg_data)
+```
+
+# Parametric Bayesian Methods
+
+## Bayesian linear model
+The linear model is given by
+$$P(y_i|\textbf{x}_i) = \mathcal{N}(\mu, \sigma^2)$$
+
+$$\mu = \mathbb{E}(y|\textbf{x}) = \beta_0 + \textbf{x}\beta$$
+
+### Step 1: Prepare the input data
+```{r}
+library(tidyverse)
+
+mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
+mpg_data$id <- 1:nrow(mpg_data)
+# mpg_data <- sample_frac(mpg_data, 0.09) # small sample
+train <- sample_frac(mpg_data, 0.7)
+test  <- anti_join(mpg_data, train, by = 'id')
+
+y <- train$mpg
+x <- as.matrix(train[, 3])
+N <- nrow(x)
+D <- ncol(x)
+x_pred <- as.matrix(test[, 3])
+N_pred <- nrow(x_pred)
+
+my_data <- list(y = y, x = x, N = N, D = D, x_pred = x_pred, N_pred = N_pred)
+```
+
+### Step 2: Build the model
+The model is prepared in a separate stan file named "linear_bayes.stan"
+```{r}
+linear_bayes <- "
+data {
+  int<lower = 1> D;      // dim of dataset
+  int<lower=1> N1;       // sample size of training set
+  matrix[N1, D] x1;      // obs of training set
+  vector[N1] y1;         // response of training set
+
+  int<lower=1> N2;       // sample size of test set
+  matrix[N2, D] x2;     // obs of test set
+}
+parameters {
+  real intercept;
+  vector[D] slope;
+  real<lower=0> sigma;
+}
+model {
+  intercept ~ normal(0, 10);     // prior on eta
+  slope ~ normal(0, 10);     // prior
+  sigma ~ cauchy(0, 10);   // prior
+
+  y1 ~ normal(x1 * slope + intercept, sigma);
+}
+generated quantities {
+  vector[N2] y2;
+  for (n in 1:N2)
+    y2[n] = normal_rng(x2[n] * slope + intercept, sigma);
+}
+"
+```
+
+
+### Step 3: Translate and compile the model
+Translate the Stan program to C++ code and compile the C++ code to create a dynamic shared object (DSO) that can be loaded by R.
+```{r}
+model_compiled_lm <- stan_model(file = "linear_bayes.stan", 
+                                     model_name = "linear_model")
+```
+
+### Step 4: Sample from the posterior
+```{r}
+fit_lm <- sampling(model_compiled_lm, data = my_data, 
+                          iter = 2000, chains = 4, cores = getOption("mc.cores", 1L), 
+                       control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth = 15))
+#saveRDS(fit_lm, file = "fit_lm.RDS")
+```
+
+### Step 5: Evaluate & criticize the results
+```{r}
+fit_lm <-readRDS("fit_lm.RDS")
+list_of_draws <- rstan::extract(fit_lm)
+print(names(list_of_draws))
+print(fit_lm)
+```
+
+#### Step 5.1: Predictive Accuracy
+```{r}
+y_pred <- colMeans(list_of_draws$y_pred) %>% as.data.frame()
+y_actual <- test$mpg 
+y_combined <- data.frame(y_pred = y_pred, y_actual = y_actual)
+
+# Function that returns Root Mean Squared Error
+rmse <- function(y_observed, y_predicted) {
+  error <- y_observed - y_predicted
+  sqrt(mean(error^2))
+}
+
+# Function that returns Mean Absolute Error
+mae <- function(y_observed, y_predicted) {
+  error_abs <- abs(y_observed - y_predicted)
+  colnames(error_abs) <- "absolute_error"
+  mean(error_abs$absolute_error)
+}
+
+error1 <- rmse(y_observed = y_actual, y_predicted = y_pred)
+error2 <- mae(y_observed = y_actual, y_predicted = y_pred)
+error1
+error2
+```
+
+#### Step 5.2: Visualize results
+Visualize the model itself ontop of the test data
+```{r}
+p1 <- ggplot(test, aes(test$displacement, test$mpg)) +
+  geom_point(aes(colour = 'Test data')) +
+  geom_abline(aes(intercept = 34.48, slope = -0.06, colour = 'Posterior linear function')) + 
+  theme_bw() + theme(legend.position = "bottom") + 
+  xlab("x = displacement") + 
+  ylab("y = mpg") + 
+  scale_color_manual(name = '', values = c('Test data'='black',
+                                           'Posterior linear function'= 'blue')) +
+  ggtitle("Bayesian Linear Regression", 
+          subtitle = "The estimated parameters are used to fit a linear model the test data.\n RMSE = 4.77 and MAE = 3.58")
+p1
+```
+
+Visualise distributions of MCMC draws
+```{r}
+library("bayesplot")
+color_scheme_set("brightblue")
+array_of_draws <- as.array(fit_lm)
+mcmc_intervals(array_of_draws, pars = c("intercept", "slope[1]", "sigma")) + 
+  ggtitle("Intervals of parameters from Bayesian Linear Regression", 
+          subtitle = "")
+```
+
+```{r}
+mcmc_areas(
+  array_of_draws, 
+  pars = c("intercept", "slope[1]", "sigma"),
+  prob = 0.8, # 80% intervals
+  prob_outer = 0.99, # 99%
+  point_est = "mean"
+) + 
+  ggtitle("Distribution of parameters from Bayesian Linear Regression", 
+          subtitle = "")
+```
+
+```{r}
+mcmc_dens(array_of_draws, 
+          pars = c("intercept", "slope[1]", "sigma"), 
+          facet_args = list(labeller = ggplot2::label_parsed)) + 
+  ggtitle("Density plots of parameters from Bayesian Linear Regression", 
+          subtitle = "")
+```
+
+#### Step 5.3: Diagnose MCMC draws
+```{r}
+color_scheme_set("mix-blue-red")
+mcmc_trace(array_of_draws, pars = c("intercept", "slope[1]", "sigma"), 
+           facet_args = list(ncol = 1, strip.position = "left"))
+```
+
+```{r}
+n_ratios <- neff_ratio(fit_lm)
+#print(n_ratios)
+mcmc_neff(n_ratios)
+```
+```{r}
+mcmc_neff_hist(n_ratios) 
 ```
 
 # Nonparametric Bayesian Methods
@@ -60,9 +230,7 @@ library(tidyverse)
 
 mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
 mpg_data$id <- 1:nrow(mpg_data)
-
-mpg_data <- sample_frac(mpg_data, 0.09) # small sample
-
+# mpg_data <- sample_frac(mpg_data, 0.09) # small sample
 train <- sample_frac(mpg_data, 0.7)
 test  <- anti_join(mpg_data, train, by = 'id')
 
@@ -73,16 +241,7 @@ D <- ncol(x)
 x_pred <- as.matrix(test[, 3])
 N_pred <- nrow(x_pred)
 
-length_scale_shape <- 150
-length_scale_rate <- 1
-signal_variance_scale <- 1
-noise_variance_scale <- 0.1
-
-my_data <- list(y = y, x = x, N = N, D = D, x_pred = x_pred, N_pred = N_pred, 
-                        length_scale_shape = length_scale_shape, 
-                        length_scale_rate = length_scale_rate, 
-                        signal_variance_scale = signal_variance_scale, 
-                        noise_variance_scale = noise_variance_scale)
+my_data <- list(y = y, x = x, N = N, D = D, x_pred = x_pred, N_pred = N_pred)
 ```
 
 ### Step 2: Build the model
@@ -133,7 +292,7 @@ model_compiled <- stan_model(file = "gp_model.stan",
                                      model_name = "gp_model")
 ```
 
-## Step 4: Sample from the posterior
+### Step 4: Sample from the posterior
 Run the DSO to sample from the posterior distribution.
 ```{r}
 fit <- sampling(model_compiled, data = my_data, 
@@ -142,24 +301,24 @@ fit <- sampling(model_compiled, data = my_data,
 #saveRDS(fit, file = "fit.RDS")
 ```
 
-## Step 5: Evaluate & criticize the results
+### Step 5: Evaluate & criticize the results
 ```{r}
-#fit_gp_tdm <- readRDS("fit_gp_tdm_many_kernels_log2.RDS")
-list_of_draws <- rstan::extract(fit_gp_tdm)
+fit <- readRDS("fit.RDS")
+list_of_draws <- rstan::extract(fit)
 print(names(list_of_draws))
 ```
 ```{r}
-tidy_fit <- broom::tidy(fit_gp_tdm, estimate.method = "mean", conf.int = TRUE, conf.level = 0.80, conf.method = "quantile", droppars = "lp__",
+tidy_fit <- broom::tidy(fit, estimate.method = "mean", conf.int = TRUE, conf.level = 0.80, conf.method = "quantile", droppars = "lp__",
   rhat = TRUE, ess = TRUE)
-saveRDS(tidy_fit, "tidy_fit_log2.RDS")
-print(fit_gp_tdm)
+saveRDS(tidy_fit, "tidy_fit.RDS")
+print(fit)
 ```
 
-### Step 5.1: Predictive Accuracy
+#### Step 5.1: Predictive Accuracy
 ```{r}
 library(magrittr)
 y_pred <- colMeans(list_of_draws$y_pred) %>% as.data.frame()
-y_actual <- log(test_design_df$act_dur)
+y_actual <- test$mpg 
 y_combined <- data.frame(y_pred = y_pred, y_actual = y_actual)
 
 # Function that returns Root Mean Squared Error
@@ -181,20 +340,20 @@ error1
 error2
 ```
 
-### Step 5.2: Visualise Results
+#### Step 5.2: Visualise Results
 
-#### Posterior distribution of fitted parameters
+##### Posterior distribution of fitted parameters
 Visualise distributions of MCMC draws
 ```{r}
-array_of_draws <- as.array(fit_gp_tdm)
+array_of_draws <- as.array(fit)
 mcmc_dens(array_of_draws, 
           pars = c("alpha", "sigma"), 
           facet_args = list(labeller = as_labeller(c(
                     `alpha` = "Signal variance",
                     `sigma` = "Noise variance"
                     )))) + 
-  # ggtitle("Posterior distribution of Hyperparameters", 
-  #         subtitle = "from Bayesian Nonparametric Regression") + 
+  ggtitle("Posterior distribution of Hyperparameters", 
+         subtitle = "from Bayesian Nonparametric Regression") + 
   theme_ipsum(grid="Y") + 
   theme(legend.position="none",
         axis.text.x = element_text(size = 16, colour = "black"),
@@ -207,43 +366,55 @@ mcmc_dens(array_of_draws,
 # + scale_x_continuous(breaks = c(0.3,0.4,0.5))
 ```
 
-#### Posterior predictive distribution
+```{r}
+mcmc_dens(array_of_draws, 
+          pars = c("length_scale"), 
+          facet_args = list(labeller = as_labeller(c(
+                    `length_scale` = "Length scale"
+                    )))) + 
+  ggtitle("Posterior distribution of Hyperparameters",
+          subtitle = "from Bayesian Nonparametric Regression") +
+  theme_ipsum(grid="Y") + 
+  theme(legend.position="none",
+        axis.text.x = element_text(size = 16, colour = "black"),
+        axis.text.y = element_text(size = 16, colour = "black"),
+        plot.title = element_text(size = 18, colour = "black", face = "bold"),
+        plot.subtitle = element_text(size = 14, colour = "black"),
+        axis.title.x = element_text(size = 16),
+        strip.text.x = element_text(size = 16),
+        axis.title.y = element_text(size = 16)) + 
+  xlab('Estimate') + 
+  ylab('Density')
+```
+
+##### Posterior predictive distribution
 ```{r}
 library(reshape2)
-post_pred <- data.frame(x = test_design_df[, 2], 
-                        y_pred = colMeans(list_of_draws$y_pred), 
-                        y_actual = log(test_design_df$act_dur))
-post_mu_fs <- data.frame(x = test_design_df[, 2], 
-                         y = t(list_of_draws$y_pred))
+post_pred <- data.frame(x = test$displacement, y_pred = colMeans(list_of_draws$y_pred), 
+                        y_actual = test$mpg)
+post_mu_fs <- data.frame(x = test$displacement, y = t(list_of_draws$y_pred))
 #post_mu_fs <- post_mu_fs[,1:6]
 post_mu_fs_melt <- melt(post_mu_fs, id.vars = "x")
 
-p2 <- ggplot(data = post_pred, aes(x = x, y = y_actual)) + 
+library(ggplot2)
+p1 <- ggplot(data = post_pred, aes(x = x, y = y_actual)) + 
   geom_line(data = post_mu_fs_melt, aes(x = x, y = value, group = variable, 
-                                        colour = 'Posterior functions'), alpha = 0.01) + 
+                                        colour = 'Posterior functions'), alpha = 0.15) + 
   theme_bw() + theme(legend.position="bottom") +
   geom_line(data = post_pred, aes(x = x, y = y_pred, colour = 'Posterior mean function')) + 
   theme_bw() + theme(legend.position = "bottom") + 
-  geom_point(aes(colour = 'Test data')) +
-  scale_color_manual(name = '', values = c('Test data'='black',
+  geom_point(aes(colour = 'Realized data')) +
+  scale_color_manual(name = '', values = c('Realized data'='black',
                                            'Posterior functions'= 'blue',
                                            'Posterior mean function'='red')) +
-  xlab('Auto driver') + 
-  ylab('log(Duration in mins)') + 
-  ggtitle(paste0('Length-scale = ' ,round((mean(list_of_draws$length_scale_1)), digits = 2))) +
-  # ggtitle("Gaussian Process posterior", 
-  #         subtitle = paste0('Posterior predictive distribution with length-scale = ' ,round((mean(list_of_draws$length_scale_1)), digits = 2),', sigma = ' ,round((mean(list_of_draws$sigma)), digits = 2),', alpha = ' ,round((mean(list_of_draws$alpha)), digits = 2),'')) + 
-      theme(axis.title.x = element_text(size = 16),
-        axis.text.x = element_text(size = 16, colour = "black"),
-        axis.text.y = element_text(size = 16, colour = "black"),
-        axis.title.y = element_text(size = 16),
-        plot.title = element_text(size=16, hjust = 0),
-        legend.position="none") + 
-  scale_x_continuous(breaks = c(0, 1), labels = c("No", "Yes"))
-p2
+  xlab('x = displacement') + 
+  ylab('y = mpg') +
+  ggtitle("Bayesian Nonparametric Regression", 
+          subtitle = paste0('Posterior predictive distribution with N = ',length(t(x_pred)),', length-scale = ' ,round((mean(list_of_draws$length_scale)), digits = 2),', sigma = ' ,round((mean(list_of_draws$sigma)), digits = 2),', eta = ' ,round((mean(list_of_draws$alpha)), digits = 2),' \n RMSE = ' ,round(error1, digits = 2),', MAE = ' ,round(error2, digits = 2),' '))
+p1
 ```
 
-### Step 5.3: Diagnose MCMC draws
+#### Step 5.3: Diagnose MCMC draws
 ```{r}
 color_scheme_set("mix-blue-red")
 mcmc_trace(array_of_draws, pars = c("length_scale", "alpha", "sigma"), 
@@ -251,7 +422,7 @@ mcmc_trace(array_of_draws, pars = c("length_scale", "alpha", "sigma"),
 ```
 
 ```{r}
-n_ratios <- neff_ratio(fit_gp_tdm)
+n_ratios <- neff_ratio(fit)
 #print(n_ratios)
 mcmc_neff(n_ratios)
 ```
@@ -262,11 +433,11 @@ mcmc_neff_hist(n_ratios)
 
 # Appendix
 
-## Compare with linear model
+## Compare with Frequentist linear model
 ```{r}
 library(caret)
 ##fit a linear model using "lm" method from caret package
-lm_fit<-train(mpg ~ disp + hp + drat + wt + qsec, method="lm", data = train)
+lm_fit<-train(mpg ~ displacement, method="lm", data = train)
 ##then use the model to predict new values
 lm_predict<-predict(lm_fit, newdata = test)
 rmse(y_actual, y_pred = as.data.frame(lm_predict))
