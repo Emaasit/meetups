@@ -1,5 +1,5 @@
 ---
-title: '<h2>Introduction to Probabilistic Machine Learning with RStan</h2>'
+title: '<h2>Introduction to Probabilistic Machine Learning with Stan</h2>'
 subtitle: " <br/><h3>[R & Data Science Meetup - Las Vegas]()</h3>"
 author: ' <br/><h3>[Daniel Emaasit](http://www.danielemaasit.com/)<br/>PhD Student<br/>Department of Civil Engineering<br/>University of Nevada, Las Vegas<br/>[daniel.emaasit@gmail.com](mailto:daniel.emaasit@gmail.com)</h3>'
 date: "<h4>[`r format(Sys.time(), '%B %d %Y')`]()</h4>"
@@ -107,6 +107,13 @@ knitr::include_graphics("images/bayes-theorem.png")
 knitr::include_graphics("images/pp.png")
 ```
 
+<!-- ## PML Process -->
+
+<!-- ```{r echo = FALSE, out.width = "80%", fig.cap= "Stan Group (2017)"} -->
+<!-- knitr::include_graphics("images/pml-cycle.jpg") -->
+<!-- ``` -->
+
+
 # Code I <br/> Parametric Regression  {data-background=#74d1ea}
 
 ## Bayesian <span style="color:red">Linear</span> Model (1/4)
@@ -211,7 +218,7 @@ p1 <- ggplot(test, aes(x = test$disp, y = test$mpg)) +
 p1
 ```
 
-# Code II <br/> Non-parametric Bayesian Methods  {data-background=#74d1ea}
+# Code II <br/> Nonparametric Bayesian Methods  {data-background=#74d1ea}
 
 ## Challenges of Parametric Regression 
 
