@@ -31,7 +31,7 @@ knitr::opts_chunk$set(echo = FALSE, cache = TRUE, message = FALSE, warning = FAL
 ```
 
 ## Materials
-Download slides & code: https://tinyurl.com/pml-lv
+Download slides & code: [bit.ly/intro-pml-lv](bit.ly/intro-pml-lv)
 
 ## Application 1
 * Probabilistic approach to ranking & matching gamers.
@@ -220,6 +220,10 @@ p1 <- ggplot(test, aes(x = test$disp, y = test$mpg)) +
 p1
 ```
 
+## More Examples
+
+https://github.com/stan-dev/example-models
+
 # Nonparametric Bayesian Methods  {data-background=#74d1ea}
 
 ## Challenges of Parametric Regression 
@@ -406,12 +410,16 @@ knitr::include_graphics("images/posterior_gp_fit_mtcars.png")
 
 ## References
 
-1. D. Emaasit, A. Paz and J. Salzwedel (2016).“A  Model-Based  Machine  Learning  Approach  for Capturing  Activity-Based  Mobility  Patterns  using  Cellular  Data”.
+* *Website:* http://mc-stan.org/
 
-2. McKinsey & Company, (2013). http://bit.ly/2cJ1htj 
+* *Stan Manual(v2.14):* https://github.com/stan-dev/stan/releases/download/v2.14.0/stan-reference-2.14.0.pdf 
 
-3. A. Campbell (2016). "Using Big Data to Measure Small Populations". Presented at the 2016 Conference on Innovations in Travel Modeling. Denver, Colorado, May 1st - 4th. 
+* *RStan:* https://cran.r-project.org/web/packages/rstan/vignettes/rstan.html 
 
-4. Bishop, C. M. (2013). [Model-Based Machine Learning](http://rsta.royalsocietypublishing.org/content/371/1984/20120222). Philosophical Transactions of the Royal Society A, 371, pp 1–17
+* *STANCON 2017 Intro Course Materials:* https://t.co/6d3omvBkrd 
 
-5. Winn, J., Bishop, C. M., Diethe, T. (2015). [Model-Based Machine Learning](http://www.mbmlbook.com). Microsoft Research Cambridge. http://www.mbmlbook.com.
+* *Statistical Rethinking* by R. McElreath: http://xcelab.net/rm/statistical-rethinking/
+
+* *Mailing list:* https://groups.google.com/forum/#!forum/stan-users
+
+* Winn, J., Bishop, C. M., Diethe, T. (2015). [Model-Based Machine Learning](http://www.mbmlbook.com). Microsoft Research Cambridge. http://www.mbmlbook.com.

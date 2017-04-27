@@ -1,12 +1,12 @@
--   [Introduction to Probabilistic Machine Learning with RStan](#introduction-to-probabilistic-machine-learning-with-rstan)
+-   [Introduction to Probabilistic Machine Learning with Stan](#introduction-to-probabilistic-machine-learning-with-stan)
     -   [Event Information](#event-information)
     -   [Content](#content)
     -   [Abstract](#abstract)
     -   [Pre-requisites:](#pre-requisites)
     -   [Speaker Bio:](#speaker-bio)
 
-Introduction to Probabilistic Machine Learning with RStan
-=========================================================
+Introduction to Probabilistic Machine Learning with Stan
+========================================================
 
 Event Information
 -----------------
@@ -15,7 +15,7 @@ Event Information
 
 <https://www.meetup.com/Data-Science-Las-Vegas/events/237505738/>
 
-Date: March 31, 2017
+Date: April 27, 2017
 
 Place: Las Vegas, NV @ InNEVation
 
@@ -24,9 +24,9 @@ Speaker: Daniel Emaasit
 Content
 -------
 
--   [Slides HTML](https://github.com/Emaasit/meetups/blob/master/2017_03_31_Intro_to_PML_LV/slides/slides.html)
--   [Slides PDF](https://github.com/Emaasit/meetups/blob/master/2017_03_31_Intro_to_PML_LV/slides/slides.html)
--   [Code R](https://github.com/Emaasit/meetups/blob/master/2017_03_31_Intro_to_PML_LV/intro-to-pml-rstan.Rmd)
+-   [Slides HTML](https://github.com/Emaasit/meetups/blob/master/2017_04_27_Intro_to_PML_LV/slides/slides.html)
+-   [Slides PDF](https://github.com/Emaasit/meetups/blob/master/2017_04_27_Intro_to_PML_LV/slides/slides.pdf)
+-   [Code R](https://github.com/Emaasit/meetups/blob/master/2017_04_27_Intro_to_PML_LV/intro-to-pml-rstan.Rmd)
 
 Abstract
 --------
@@ -40,7 +40,7 @@ Pre-requisites:
 
 Please come with a laptop with the following software installed:
 
--   R + RStudio:- Follow this [link](https://www.r-project.org/) to install R & this link to install the LATEST version of RStudio.
+-   R + RStudio:- Follow this [link](https://www.r-project.org/) to install R. Also install the LATEST version of RStudio.
 -   rstan:- Follow this [link](https://github.com/stan-dev/rstan/wiki/Installing-RStan-on-Mac-or-Linux) to install rstan on MacOS/Linux or this link for Windows.
 -   bayesplot:- Follow this [link](https://github.com/stan-dev/bayesplot) to install bayesplot
 

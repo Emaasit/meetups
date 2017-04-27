@@ -3,9 +3,6 @@ title: "Introduction to Probabilistic Machine Learning with Stan"
 author: "Daniel Emaasit"
 date: '`r Sys.Date()`'
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '4'
   html_notebook:
     highlight: textmate
     number_sections: yes
@@ -14,6 +11,9 @@ output:
     toc_depth: 3
     toc_float:
       collapsed: no
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
 ---
 
 ```{r setup, include=FALSE}
@@ -42,7 +42,8 @@ options(mc.cores = parallel::detectCores())
 ```
 
 ## The raw data
-https://archive.ics.uci.edu/ml/datasets/Auto+MPG
+Let's use the Auto MPG Data Set from the UCI Machine Learning Repository: https://archive.ics.uci.edu/ml/datasets/Auto+MPG
+
 ```{r}
 mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
 head(mpg_data)
@@ -82,12 +83,12 @@ The model is prepared in a separate stan file named "linear_bayes.stan"
 linear_bayes <- "
 data {
   int<lower = 1> D;      // dim of dataset
-  int<lower=1> N1;       // sample size of training set
-  matrix[N1, D] x1;      // obs of training set
-  vector[N1] y1;         // response of training set
+  int<lower=1> N;       // sample size of training set
+  matrix[N, D] x;      // obs of training set
+  vector[N] y;         // response of training set
 
-  int<lower=1> N2;       // sample size of test set
-  matrix[N2, D] x2;     // obs of test set
+  int<lower=1> N_pred;       // sample size of test set
+  matrix[N_pred, D] x_pred;     // obs of test set
 }
 parameters {
   real intercept;
@@ -95,16 +96,16 @@ parameters {
   real<lower=0> sigma;
 }
 model {
-  intercept ~ normal(0, 10);     // prior on eta
+  intercept ~ normal(0, 10);     // prior on intercept
   slope ~ normal(0, 10);     // prior
   sigma ~ cauchy(0, 10);   // prior
 
-  y1 ~ normal(x1 * slope + intercept, sigma);
+  y ~ normal(x * slope + intercept, sigma);
 }
 generated quantities {
-  vector[N2] y2;
-  for (n in 1:N2)
-    y2[n] = normal_rng(x2[n] * slope + intercept, sigma);
+  vector[N_pred] y_pred;
+  for (n in 1:N_pred)
+    y_pred[n] = normal_rng(x_pred[n] * slope + intercept, sigma);
 }
 "
 ```
@@ -432,6 +433,22 @@ mcmc_neff_hist(n_ratios)
 
 
 # Appendix
+## References
+
+* *Website:* http://mc-stan.org/
+
+* *Stan Manual(v2.14):* https://github.com/stan-dev/stan/releases/download/v2.14.0/stan-reference-2.14.0.pdf 
+
+* *RStan:* https://cran.r-project.org/web/packages/rstan/vignettes/rstan.html 
+
+* *STANCON 2017 Intro Course Materials:* https://t.co/6d3omvBkrd 
+
+* *Statistical Rethinking* by R. McElreath: http://xcelab.net/rm/statistical-rethinking/
+
+* *Mailing list:* https://groups.google.com/forum/#!forum/stan-users
+
+* Winn, J., Bishop, C. M., Diethe, T. (2015). [Model-Based Machine Learning](http://www.mbmlbook.com). Microsoft Research Cambridge. http://www.mbmlbook.com.
+
 
 ## Compare with Frequentist linear model
 ```{r}
