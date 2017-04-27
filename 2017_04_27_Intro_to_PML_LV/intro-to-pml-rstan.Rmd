@@ -230,7 +230,7 @@ library(tidyverse)
 
 mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
 mpg_data$id <- 1:nrow(mpg_data)
-# mpg_data <- sample_frac(mpg_data, 0.09) # small sample
+mpg_data <- sample_frac(mpg_data, 0.5) # small sample
 train <- sample_frac(mpg_data, 0.7)
 test  <- anti_join(mpg_data, train, by = 'id')
 
@@ -303,7 +303,7 @@ fit <- sampling(model_compiled, data = my_data,
 
 ### Step 5: Evaluate & criticize the results
 ```{r}
-fit <- readRDS("fit.RDS")
+fit <- readRDS("fit_50.RDS")
 list_of_draws <- rstan::extract(fit)
 print(names(list_of_draws))
 ```
