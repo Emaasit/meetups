@@ -145,6 +145,8 @@ datatable(mtcars, class = 'cell-border stripe',
       + Noise-deviation: $\sigma \sim \mathcal{N}(0, 5)$ 
 <div>
 ```{r fig.height = 5, fig.align='default'}
+library(ggplot2)
+library(plotly)
 intercept_df <- data_frame(rnorm(n = 10000, mean = 0, sd = 20)) 
 colnames(intercept_df) <- "intercept"
 slope_df <- data_frame(rnorm(n = 10000, mean = 0, sd = 15)) 

@@ -1,6 +1,6 @@
 base
-ggplot2
-plotly
 dplyr
 DT
+ggplot2
+plotly
 bayesplot

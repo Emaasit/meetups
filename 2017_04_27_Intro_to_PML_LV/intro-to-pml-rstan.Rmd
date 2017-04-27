@@ -3,6 +3,9 @@ title: "Introduction to Probabilistic Machine Learning with Stan"
 author: "Daniel Emaasit"
 date: '`r Sys.Date()`'
 output:
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
   html_notebook:
     highlight: textmate
     number_sections: yes
@@ -11,9 +14,6 @@ output:
     toc_depth: 3
     toc_float:
       collapsed: no
-  pdf_document:
-    toc: yes
-    toc_depth: '4'
 ---
 
 ```{r setup, include=FALSE}
@@ -303,7 +303,7 @@ fit <- sampling(model_compiled, data = my_data,
 
 ### Step 5: Evaluate & criticize the results
 ```{r}
-fit <- readRDS("fit_50.RDS")
+fit <- readRDS("fit.RDS")
 list_of_draws <- rstan::extract(fit)
 print(names(list_of_draws))
 ```
@@ -450,7 +450,7 @@ postResample(pred = lm_predict, obs = test$mpg) ## my rmse is the same as from c
 
 ```{r}
 library(ggplot2)
-ggplot(data = head(mpg_data, n = 10), aes(x = disp, y = mpg)) + 
+ggplot(data = train, aes(x = displacement, y = mpg)) + 
   geom_point() + 
   geom_smooth(aes(color = "Polynomial"), method = "lm", 
               formula = (formula= (y ~ poly(x, 4))))
