@@ -45,7 +45,8 @@ options(mc.cores = parallel::detectCores())
 Let's use the Auto MPG Data Set from the UCI Machine Learning Repository: https://archive.ics.uci.edu/ml/datasets/Auto+MPG
 
 ```{r}
-mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
+mpg_data <- read.table("https://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data")
+colnames (mpg_data) <- c("mpg", "cylinders", "displacement", "horsepower", "weight", "acceleration", "model_year", "origin", "car_name") 
 head(mpg_data)
 ```
 
@@ -61,7 +62,6 @@ $$\mu = \mathbb{E}(y|\textbf{x}) = \beta_0 + \textbf{x}\beta$$
 ```{r}
 library(tidyverse)
 
-mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
 mpg_data$id <- 1:nrow(mpg_data)
 # mpg_data <- sample_frac(mpg_data, 0.09) # small sample
 train <- sample_frac(mpg_data, 0.7)
@@ -128,7 +128,7 @@ fit_lm <- sampling(model_compiled_lm, data = my_data,
 
 ### Step 5: Evaluate & criticize the results
 ```{r}
-fit_lm <-readRDS("fit_lm.RDS")
+#fit_lm <- readRDS("fit_lm.RDS")
 list_of_draws <- rstan::extract(fit_lm)
 print(names(list_of_draws))
 print(fit_lm)
@@ -164,7 +164,7 @@ Visualize the model itself ontop of the test data
 ```{r}
 p1 <- ggplot(test, aes(test$displacement, test$mpg)) +
   geom_point(aes(colour = 'Test data')) +
-  geom_abline(aes(intercept = 34.48, slope = -0.06, colour = 'Posterior linear function')) + 
+  geom_abline(aes(intercept = 35.16, slope = -0.06, colour = 'Posterior linear function')) + 
   theme_bw() + theme(legend.position = "bottom") + 
   xlab("x = displacement") + 
   ylab("y = mpg") + 
@@ -229,7 +229,6 @@ mcmc_neff_hist(n_ratios)
 ```{r}
 library(tidyverse)
 
-mpg_data <- read_csv("data/auto_mpg_data.csv") %>% na.omit()
 mpg_data$id <- 1:nrow(mpg_data)
 mpg_data <- sample_frac(mpg_data, 0.5) # small sample
 train <- sample_frac(mpg_data, 0.7)

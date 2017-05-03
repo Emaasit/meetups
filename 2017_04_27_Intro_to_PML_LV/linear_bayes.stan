@@ -13,7 +13,7 @@ parameters {
   real<lower=0> sigma;
 }
 model {
-  intercept ~ normal(0, 10);     // prior on eta
+  intercept ~ normal(0, 10);     // prior on intercept
   slope ~ normal(0, 10);     // prior
   sigma ~ cauchy(0, 10);   // prior
 
