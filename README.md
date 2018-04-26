@@ -4,7 +4,7 @@ Data Science Meetups & Conferences
 * Click this icon [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Emaasit/meetups/master?urlpath=lab) to open the notebooks in a web browser without installing any software.
 
 
-<img src="data-science-workflow.png" alt="Haystax's Data Science Workflow" width="75%" />
+<img src="data-science-workflow.png" alt="Data Science Workflow" width="75%" />
 <figcaption>Haystax's Data Science Workflow.</figcaption>
 
 
