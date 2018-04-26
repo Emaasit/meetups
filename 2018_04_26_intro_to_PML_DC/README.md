@@ -25,9 +25,9 @@ Content
 -------
 
 -   [Slides HTML](https://slides.com/emaasit/intro-pml-dc)
--   [Slides PDF](https://github.com/Emaasit/meetups/blob/master/2018_04_26_intro_to_PML_DC/slides/slides.pdf)
+-   [Slides PDF](https://github.com/Emaasit/meetups/blob/master/2018_04_26_Intro_to_PML_DC/slides/intro-pml-dc.pdf)
 -   [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Emaasit/meetups/master?urlpath=lab) for the code. 
--   [Code Repository](https://github.com/Emaasit/meetups/blob/master/2018_04_26_intro_to_PML_DC/notebooks)
+-   [Code Repository](https://github.com/Emaasit/meetups/blob/master/2018_04_26_Intro_to_PML_DC/notebooks)
 
 Abstract
 --------
