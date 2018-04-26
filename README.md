@@ -5,7 +5,7 @@ Data Science Meetups & Conferences
 
 
 <img src="data-science-workflow.png" alt="Data Science Workflow" width="75%" />
-<figcaption>Haystax's Data Science Workflow.</figcaption>
+<figcaption>Data Science Workflow.</figcaption>
 
 
 What's the purpose of this project?
