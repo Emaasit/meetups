@@ -136,6 +136,7 @@ dependencies:
 - zeromq=4.2.2
 - zlib=1.2.11
 - fastparquet=0.1.5
+- mkl-service
 #- thrift-0.11.0
 - pip:
   - absl-py==0.1.10
@@ -143,6 +144,7 @@ dependencies:
   - gast==0.2.0
   - git+https://github.com/GPflow/GPflow@0.4.0#egg=GPflow
   - git+https://github.com/GPflow/GPflowOpt@master#egg=GPflowOpt
+  - git+https://github.com/pymc-learn/pymc-learn@master#egg=pymc-learn
   - pymc3==3.4.1
   - grpcio==1.10.0
   - ipython-genutils==0.2.0
