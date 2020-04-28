@@ -5,7 +5,7 @@
     -   [Pre-requisites:](#pre-requisites)
     -   [Speaker Bio:](#speaker-bio)
 
-Deploying Probabilistic Machine Learning Apps Using Streamlit
+Build Probabilistic Machine Learning Apps Using Streamlit
 ================================================================================
 
 Event Information
