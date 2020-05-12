@@ -30,7 +30,12 @@ Content
 Abstract
 --------
 
-Rapidly build and deploy probabilistic machine learning Apps using open source libraries. Make your Apps easily accessible to end users who don't have Bayesian expertise without having to go through long product-release cycles.
+Rapidly build and deploy probabilistic machine learning Apps, using Streamlit’s
+open-source app framework. Make your Apps easily accessible to end users who
+don't have Bayesian expertise & without having to go through long product-release
+cycles. As a case study, we shall use PyMC3 to build a probabilistic model that estimates the reproduction metric of COVID-19. Then we shall quickly build an App using
+Streamlit. All in pure Python.
+
 
 Pre-requisites:
 ---------------
