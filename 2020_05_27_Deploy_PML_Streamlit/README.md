@@ -1,15 +1,19 @@
+
 -   [Build Probabilistic Machine Learning Apps Using Streamlit: A Case Study of COVID-19 Reproduction Metric](#custom-pymc3-nonparametric-bayesian-models-built-on-top-of-the-scikit-learn-api)
+
     -   [Event Information](#event-information)
     -   [Content](#content)
     -   [Abstract](#abstract)
     -   [Pre-requisites:](#pre-requisites)
     -   [Speaker Bio:](#speaker-bio)
 
+
 Build Probabilistic Machine Learning Apps Using Streamlit: A Case Study of COVID-19 Reproduction Metric
 ================================================================================
 
 Event Information
 -----------------
+
 
 Meetup.com: <https://www.meetup.com/Bayesian-Data-Science-DC/events/270623940>
 
@@ -26,14 +30,17 @@ Content
 -   [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Emaasit/meetups/master?urlpath=lab) for the code.
 -   [Code Repository](https://github.com/Emaasit/meetups/blob/master/2020_05_27_Deploy_PML_Streamlit/notebooks)
 
+
 Abstract
 --------
+
 
 Rapidly build and deploy probabilistic machine learning Apps, using Streamlit’s
 open-source app framework. Make your Apps easily accessible to end users who
 don't have Bayesian expertise & without having to go through long product-release
 cycles. As a case study, we shall use PyMC3 to build a probabilistic model that estimates the reproduction metric of COVID-19. Then we shall quickly build an App using
 Streamlit. All in pure Python.
+
 
 
 Pre-requisites:
