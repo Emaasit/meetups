@@ -11,7 +11,7 @@ Build Probabilistic Machine Learning Apps Using Streamlit: A Case Study of COVID
 Event Information
 -----------------
 
-Meetup.com: <https://www.meetup.com/Bayesian-Data-Science-DC/events/254613927/>
+Meetup.com: <https://www.meetup.com/Bayesian-Data-Science-DC/events/270623940>
 
 Date: May 27, 2020
 
@@ -22,10 +22,9 @@ Speaker: Daniel Emaasit
 Content
 -------
 
--   [Slides HTML](https://slides.com/emaasit/pymc-learn-dc)
--   [Slides PDF](https://github.com/Emaasit/meetups/blob/master/2018_10_11_PyMC_Learn_DC/slides/pymc-learn-dc.pdf)
+-   [Slides HTML](https://github.com/Emaasit/meetups/blob/master/2020_05_27_Deploy_PML_Streamlit/slides)
 -   [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Emaasit/meetups/master?urlpath=lab) for the code.
--   [Code Repository](https://github.com/Emaasit/meetups/blob/master/2018_10_11_PyMC_Learn_DC/notebooks)
+-   [Code Repository](https://github.com/Emaasit/meetups/blob/master/2020_05_27_Deploy_PML_Streamlit/notebooks)
 
 Abstract
 --------
